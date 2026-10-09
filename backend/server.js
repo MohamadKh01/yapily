@@ -59,23 +59,54 @@ app.post('/api/auth-request', async (req, res) => {
   }
 });
 
-// 3. Callback redirect handler: intercepts the browser return and bounces to the mobile scheme
-// Catch if redirected to /callback
-app.get('/callback', (req, res) => {
-  const consent = req.query.consent || req.query.consentToken || '';
-  if (consent) {
-    return res.redirect(`dabi-lab3://callback?consent=${encodeURIComponent(consent)}`);
-  }
-  res.send('Callback received, but no consent token was provided.');
-});
+// // 3. Callback redirect handler: intercepts the browser return and bounces to the mobile scheme
+// // Catch if redirected to /callback
+// app.get('/callback', (req, res) => {
+//   const consent = req.query.consent || req.query.consentToken || '';
+//   if (consent) {
+//     return res.redirect(`dabi-lab3://callback?consent=${encodeURIComponent(consent)}`);
+//   }
+//   res.send('Callback received, but no consent token was provided.');
+// });
 
-// Fallback: catch if Yapily redirects to the root domain /
-app.get('/', (req, res) => {
+// // Fallback: catch if Yapily redirects to the root domain /
+// app.get('/', (req, res) => {
+//   const consent = req.query.consent || req.query.consentToken || '';
+//   if (consent) {
+//     return res.redirect(`dabi-lab3://callback?consent=${encodeURIComponent(consent)}`);
+//   }
+//   res.send('Yapily AIS Proxy Server is Running');
+// });
+
+app.get('/callback/consent', (req, res) => {
   const consent = req.query.consent || req.query.consentToken || '';
+  
   if (consent) {
-    return res.redirect(`dabi-lab3://callback?consent=${encodeURIComponent(consent)}`);
+    // Serve an HTML page that safely attempts the deep links without crashing the browser
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+        <body style="text-align: center; padding-top: 50px; font-family: sans-serif;">
+          <h2>Bank Authentication Successful</h2>
+          <p>Returning you to the app...</p>
+          <script>
+            const token = "${encodeURIComponent(consent)}";
+            
+            // 1. Try returning to the standalone Android APK / iOS build
+            window.location.href = "dabi-lab3://callback?consent=" + token;
+            
+            // 2. Fallback for Expo Go (iOS) after 1 second
+            setTimeout(() => {
+              window.location.href = "exp://192.168.0.137:8081/--/callback?consent=" + token;
+            }, 1000);
+          </script>
+        </body>
+      </html>
+    `);
+  } else {
+    res.send('No consent token provided.');
   }
-  res.send('Yapily AIS Proxy Server is Running');
 });
 
 // 4. Fetch accounts using the consent token
